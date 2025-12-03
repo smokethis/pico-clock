@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Countdown Clock</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #007bff;
+            padding-bottom: 10px;
+        }
+        .current-time {
+            text-align: center;
+            font-size: 1.5em;
+            color: #666;
+            margin: 20px 0;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+        }
+        .event {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .event-time {
+            font-weight: bold;
+            font-size: 1.2em;
+            color: #007bff;
+        }
+        .add-form {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        input, button {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background: #28a745;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #218838;
+        }
+        .btn-remove {
+            background: #dc3545;
+        }
+        .btn-remove:hover {
+            background: #c82333;
+        }
+    </style>
+</head>
+<body>
+    <h1>⏰ Countdown Clock</h1>
+    
+    <div class="current-time" id="current-time">
+        Loading time...
+    </div>
+    
+    <h2>Scheduled Events</h2>
+    <div id="events-list">
+        Loading events...
+    </div>
+    
+    <div class="add-form">
+        <h2>Add New Event</h2>
+        <form id="add-event-form">
+            <div>
+                <label>Time: <input type="time" id="event-time" required></label>
+            </div>
+            <div>
+                <label>Name: <input type="text" id="event-name" placeholder="Lunch" required></label>
+            </div>
+            <div>
+                <label>Countdown (min): <input type="number" id="event-countdown" value="5" min="1" max="60" required></label>
+            </div>
+            <button type="submit">Add Event</button>
+        </form>
+    </div>
+    
+    <script>
+        // Fetch and display events
+        async function loadEvents() {
+            try {
+                const response = await fetch('/api/events');
+                const events = await response.json();
+                
+                const eventsList = document.getElementById('events-list');
+                
+                if (events.length === 0) {
+                    eventsList.innerHTML = '<p>No events scheduled</p>';
+                    return;
+                }
+                
+                eventsList.innerHTML = events.map((event, index) => `
+                    <div class="event">
+                        <div class="event-time">${event.time}</div>
+                        <div>${event.name} (${event.countdown} min countdown)</div>
+                        <button class="btn-remove" onclick="removeEvent(${index})">Remove</button>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading events:', error);
+                document.getElementById('events-list').innerHTML = '<p>Error loading events</p>';
+            }
+        }
+        
+        // Update current time display
+        function updateTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString();
+            document.getElementById('current-time').textContent = timeString;
+        }
+        
+        // Add event form handler
+        document.getElementById('add-event-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const time = document.getElementById('event-time').value;
+            const name = document.getElementById('event-name').value;
+            const countdown = document.getElementById('event-countdown').value;
+            
+            try {
+                const response = await fetch('/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ time, name, countdown: parseInt(countdown) })
+                });
+                
+                if (response.ok) {
+                    // Clear form
+                    document.getElementById('add-event-form').reset();
+                    // Reload events
+                    loadEvents();
+                }
+            } catch (error) {
+                console.error('Error adding event:', error);
+                alert('Failed to add event');
+            }
+        });
+        
+        // Remove event
+        async function removeEvent(index) {
+            try {
+                const response = await fetch(`/remove/${index}`, { method: 'POST' });
+                if (response.ok) {
+                    loadEvents();
+                }
+            } catch (error) {
+                console.error('Error removing event:', error);
+            }
+        }
+        
+        // Initialize
+        loadEvents();
+        updateTime();
+        setInterval(updateTime, 1000);
+    </script>
+</body>
+</html>
